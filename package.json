@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "tsc",
-    "test": "jest --config jest.config.js",
-    "publish": "npm run build && wrangler publish"
+    "publish:cloudflare": "wrangler publish --env production"
   },
   "author": "ahacad",
   "license": "MIT",
