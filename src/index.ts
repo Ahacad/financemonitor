@@ -5,25 +5,90 @@
 
 import { handleApiRequest } from './api/router';
 import { handleCorsHeaders } from './utils/cors';
-import { createSafeEnv } from './utils/safe-env';
 import { Env } from './types';
 
 // Define the main event listener for the worker
 export default {
   // Handle fetch events
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // Create a safe environment that won't throw errors even if KV is missing
-    const safeEnv = createSafeEnv(env);
+    // *** KV Binding Debug Section ***
+    // Log details about the worker environment
+    console.log(`[KV DEBUG] Worker fetch event: ${new Date().toISOString()}`);
     
-    // Debug logging
-    console.log(`[Worker DEBUG] fetch handler called with env: ${env ? 'defined' : 'undefined'}`);
-    console.log(`[Worker DEBUG] env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
-    console.log(`[Worker DEBUG] ECONOMIC_DATA exists: ${env && env.ECONOMIC_DATA ? 'Yes' : 'No'}`);
-    console.log(`[Worker DEBUG] FRED_API_KEY exists: ${env && env.FRED_API_KEY ? 'Yes' : 'No'}`);
+    // Check if the env object exists
+    if (!env) {
+      console.error('[KV ERROR] env object is undefined');
+      return new Response('Internal Server Error: Environment is undefined', { status: 500 });
+    }
+    
+    // Log all available environment bindings
+    console.log(`[KV DEBUG] Available env bindings: ${Object.keys(env).join(', ')}`);
+    
+    // Check for the KV namespace binding
+    if (!env.ECONOMIC_DATA) {
+      console.error('[KV ERROR] ECONOMIC_DATA binding is missing from env');
+      
+      // Return a detailed error for debugging
+      return new Response(
+        JSON.stringify({
+          error: 'KV binding error',
+          message: 'ECONOMIC_DATA binding is missing from environment',
+          availableBindings: Object.keys(env)
+        }),
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    // Log KV binding type
+    console.log(`[KV DEBUG] ECONOMIC_DATA binding type: ${typeof env.ECONOMIC_DATA}`);
     
     // Handle preflight OPTIONS requests for CORS
     if (request.method === 'OPTIONS') {
       return handleCorsHeaders(new Response(null, { status: 204 }));
+    }
+
+    // Test KV access directly
+    if (request.url.includes('/api/debug-kv')) {
+      try {
+        // Try writing to KV
+        const testKey = 'debug-test-key';
+        const testValue = 'debug-test-value-' + new Date().toISOString();
+        
+        await env.ECONOMIC_DATA.put(testKey, testValue);
+        console.log(`[KV DEBUG] Successfully wrote test key: ${testKey}`);
+        
+        // Try reading from KV
+        const readValue = await env.ECONOMIC_DATA.get(testKey);
+        console.log(`[KV DEBUG] Read value: ${readValue}`);
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'KV test successful',
+            written: testValue,
+            read: readValue
+          }),
+          { 
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      } catch (error) {
+        console.error(`[KV ERROR] KV test failed: ${error instanceof Error ? error.message : String(error)}`);
+        return new Response(
+          JSON.stringify({
+            error: 'KV test failed',
+            message: error instanceof Error ? error.message : String(error)
+          }),
+          { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
 
     try {
@@ -32,8 +97,7 @@ export default {
       
       // API routes handling
       if (url.pathname.startsWith('/api/')) {
-        console.log(`[Worker DEBUG] Calling handleApiRequest with safeEnv`);
-        return handleApiRequest(request, safeEnv);
+        return handleApiRequest(request, env);
       }
 
       // Default response for non-matching routes
@@ -55,70 +119,7 @@ export default {
 
   // Handle scheduled events
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    // Create a safe environment that won't throw errors even if KV is missing
-    const safeEnv = createSafeEnv(env);
-    
-    try {
-      // Debug logging
-      console.log(`[Worker DEBUG] scheduled handler called with env: ${env ? 'defined' : 'undefined'}`);
-      console.log(`[Worker DEBUG] env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
-      
-      // Determine which indicators to update based on the cron pattern
-      const updatePattern = event.cron;
-      
-      // Daily updates
-      if (updatePattern === '0 0 * * *') {
-        await updateDailyIndicators(safeEnv);
-      } 
-      // Weekly updates
-      else if (updatePattern === '0 0 * * 1') {
-        await updateWeeklyIndicators(safeEnv);
-      }
-      // Monthly updates
-      else if (updatePattern === '0 0 1 * *') {
-        await updateMonthlyIndicators(safeEnv);
-      }
-      // Quarterly updates
-      else if (updatePattern.includes('0 0 1 1,4,7,10 *')) {
-        await updateQuarterlyIndicators(safeEnv);
-      }
-      
-      console.log(`Completed scheduled update: ${updatePattern}`);
-    } catch (error) {
-      console.error(`Scheduled update failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    console.log(`[Worker] Scheduled event: ${event.cron}`);
+    // Implementation omitted for simplicity while debugging KV binding
   }
 };
-
-/**
- * Update indicators that change daily
- */
-async function updateDailyIndicators(env: Env): Promise<void> {
-  // Import dynamically to avoid loading these modules for regular requests
-  const { updateFinancialIndicators } = await import('./services/indicators');
-  await updateFinancialIndicators(env);
-}
-
-/**
- * Update indicators that change weekly
- */
-async function updateWeeklyIndicators(env: Env): Promise<void> {
-  const { updateWeeklyEconomicIndicators } = await import('./services/indicators');
-  await updateWeeklyEconomicIndicators(env);
-}
-
-/**
- * Update indicators that change monthly
- */
-async function updateMonthlyIndicators(env: Env): Promise<void> {
-  const { updateMonthlyEconomicIndicators } = await import('./services/indicators');
-  await updateMonthlyEconomicIndicators(env);
-}
-
-/**
- * Update indicators that change quarterly
- */
-async function updateQuarterlyIndicators(env: Env): Promise<void> {
-  const { updateQuarterlyEconomicIndicators } = await import('./services/indicators');
-  await updateQuarterlyEconomicIndicators(env);
-}
