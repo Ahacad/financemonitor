@@ -5,12 +5,22 @@
 
 import { handleApiRequest } from './api/router';
 import { handleCorsHeaders } from './utils/cors';
+import { createSafeEnv } from './utils/safe-env';
 import { Env } from './types';
 
 // Define the main event listener for the worker
 export default {
   // Handle fetch events
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Create a safe environment that won't throw errors even if KV is missing
+    const safeEnv = createSafeEnv(env);
+    
+    // Debug logging
+    console.log(`[Worker DEBUG] fetch handler called with env: ${env ? 'defined' : 'undefined'}`);
+    console.log(`[Worker DEBUG] env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
+    console.log(`[Worker DEBUG] ECONOMIC_DATA exists: ${env && env.ECONOMIC_DATA ? 'Yes' : 'No'}`);
+    console.log(`[Worker DEBUG] FRED_API_KEY exists: ${env && env.FRED_API_KEY ? 'Yes' : 'No'}`);
+    
     // Handle preflight OPTIONS requests for CORS
     if (request.method === 'OPTIONS') {
       return handleCorsHeaders(new Response(null, { status: 204 }));
@@ -22,7 +32,8 @@ export default {
       
       // API routes handling
       if (url.pathname.startsWith('/api/')) {
-        return handleApiRequest(request, env);
+        console.log(`[Worker DEBUG] Calling handleApiRequest with safeEnv`);
+        return handleApiRequest(request, safeEnv);
       }
 
       // Default response for non-matching routes
@@ -44,25 +55,32 @@ export default {
 
   // Handle scheduled events
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Create a safe environment that won't throw errors even if KV is missing
+    const safeEnv = createSafeEnv(env);
+    
     try {
+      // Debug logging
+      console.log(`[Worker DEBUG] scheduled handler called with env: ${env ? 'defined' : 'undefined'}`);
+      console.log(`[Worker DEBUG] env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
+      
       // Determine which indicators to update based on the cron pattern
       const updatePattern = event.cron;
       
       // Daily updates
       if (updatePattern === '0 0 * * *') {
-        await updateDailyIndicators(env);
+        await updateDailyIndicators(safeEnv);
       } 
       // Weekly updates
       else if (updatePattern === '0 0 * * 1') {
-        await updateWeeklyIndicators(env);
+        await updateWeeklyIndicators(safeEnv);
       }
       // Monthly updates
       else if (updatePattern === '0 0 1 * *') {
-        await updateMonthlyIndicators(env);
+        await updateMonthlyIndicators(safeEnv);
       }
       // Quarterly updates
       else if (updatePattern.includes('0 0 1 1,4,7,10 *')) {
-        await updateQuarterlyIndicators(env);
+        await updateQuarterlyIndicators(safeEnv);
       }
       
       console.log(`Completed scheduled update: ${updatePattern}`);

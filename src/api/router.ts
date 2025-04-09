@@ -16,6 +16,12 @@ import { Env } from '../types';
  * @returns The response
  */
 export async function handleApiRequest(request: Request, env: Env): Promise<Response> {
+  // Debug logging
+  console.log(`[Router DEBUG] handleApiRequest: env exists: ${env ? 'Yes' : 'No'}`);
+  console.log(`[Router DEBUG] env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
+  console.log(`[Router DEBUG] ECONOMIC_DATA exists: ${env && env.ECONOMIC_DATA ? 'Yes' : 'No'}`);
+  console.log(`[Router DEBUG] FRED_API_KEY exists: ${env && env.FRED_API_KEY ? 'Yes' : 'No'}`);
+  
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api\//, '');
   const segments = path.split('/').filter(Boolean);
@@ -26,6 +32,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     
     // GET /api/indicators - List all indicators
     if (path === 'indicators' && request.method === 'GET') {
+      console.log(`[Router DEBUG] Calling getIndicatorsList with env: ${env ? 'Yes' : 'No'}`);
       const data = await getIndicatorsList(env);
       response = new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json' }
@@ -35,6 +42,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // GET /api/indicators/:category - Get indicators by category
     else if (segments[0] === 'indicators' && segments.length === 2 && request.method === 'GET') {
       const category = segments[1];
+      console.log(`[Router DEBUG] Calling getIndicatorsByCategory with env: ${env ? 'Yes' : 'No'}`);
       const data = await getIndicatorsByCategory(category, env);
       response = new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json' }
@@ -45,6 +53,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     else if (segments[0] === 'data' && segments.length === 2 && request.method === 'GET') {
       const seriesId = segments[1];
       const params = Object.fromEntries(url.searchParams);
+      console.log(`[Router DEBUG] Calling getSeriesData with env: ${env ? 'Yes' : 'No'}`);
       const data = await getSeriesData(seriesId, params, env);
       response = new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json' }
@@ -54,6 +63,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // GET /api/data/:seriesId/latest - Get latest data point
     else if (segments[0] === 'data' && segments.length === 3 && segments[2] === 'latest' && request.method === 'GET') {
       const seriesId = segments[1];
+      console.log(`[Router DEBUG] Calling getLatestDataPoint with env: ${env ? 'Yes' : 'No'}`);
       const data = await getLatestDataPoint(seriesId, env);
       response = new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json' }
@@ -63,6 +73,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // GET /api/dashboard/:dashboardId - Get dashboard data
     else if (segments[0] === 'dashboard' && segments.length === 2 && request.method === 'GET') {
       const dashboardId = segments[1];
+      console.log(`[Router DEBUG] Calling getDashboardData with env: ${env ? 'Yes' : 'No'}`);
       const data = await getDashboardData(dashboardId, env);
       response = new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json' }
@@ -81,6 +92,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     return handleCorsHeaders(response);
   } catch (error) {
     // Handle errors
+    console.error(`[Router ERROR] ${error instanceof Error ? error.message : String(error)}`);
     const errorResponse = new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Internal server error' 

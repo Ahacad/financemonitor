@@ -13,6 +13,15 @@ import { Env } from '../types';
  */
 export async function getFromCache(key: string, env: Env): Promise<string | null> {
   try {
+    // Debug logging
+    console.log(`[KV DEBUG] getFromCache: env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
+    console.log(`[KV DEBUG] getFromCache: ECONOMIC_DATA exists: ${env && env.ECONOMIC_DATA ? 'Yes' : 'No'}`);
+    
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing! env: ${JSON.stringify(env, null, 2)}`);
+      return null;
+    }
+    
     return await env.ECONOMIC_DATA.get(key);
   } catch (error) {
     console.error(`Error getting key ${key} from cache: ${error instanceof Error ? error.message : String(error)}`);
@@ -30,8 +39,18 @@ export async function getFromCache(key: string, env: Env): Promise<string | null
  */
 export async function setCache(key: string, value: string, ttl: number | null = null, env: Env): Promise<boolean> {
   try {
+    // Debug logging
+    console.log(`[KV DEBUG] setCache: env keys: ${env ? Object.keys(env).join(', ') : 'env is undefined'}`);
+    console.log(`[KV DEBUG] setCache: ECONOMIC_DATA exists: ${env && env.ECONOMIC_DATA ? 'Yes' : 'No'}`);
+    
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing! env: ${JSON.stringify(env, null, 2)}`);
+      return false;
+    }
+    
     const options = ttl ? { expirationTtl: ttl } : {};
     await env.ECONOMIC_DATA.put(key, value, options);
+    console.log(`[KV SUCCESS] Successfully cached key: ${key}`);
     return true;
   } catch (error) {
     console.error(`Error setting key ${key} in cache: ${error instanceof Error ? error.message : String(error)}`);
@@ -47,6 +66,11 @@ export async function setCache(key: string, value: string, ttl: number | null = 
  */
 export async function deleteCache(key: string, env: Env): Promise<boolean> {
   try {
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing!`);
+      return false;
+    }
+    
     await env.ECONOMIC_DATA.delete(key);
     return true;
   } catch (error) {
@@ -63,6 +87,11 @@ export async function deleteCache(key: string, env: Env): Promise<boolean> {
  */
 export async function getMultiCache(keys: string[], env: Env): Promise<Record<string, string | null>> {
   try {
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing!`);
+      return {};
+    }
+    
     // KV doesn't have a native getMany, so we'll use Promise.all
     const promises = keys.map(key => getFromCache(key, env));
     const values = await Promise.all(promises);
@@ -88,6 +117,11 @@ export async function getMultiCache(keys: string[], env: Env): Promise<Record<st
  */
 export async function cacheHas(key: string, env: Env): Promise<boolean> {
   try {
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing!`);
+      return false;
+    }
+    
     const value = await env.ECONOMIC_DATA.get(key, { type: 'text' });
     return value !== null;
   } catch (error) {
@@ -105,6 +139,11 @@ export async function cacheHas(key: string, env: Env): Promise<boolean> {
  */
 export async function listCacheKeys(prefix: string, limit: number = 1000, env: Env): Promise<string[]> {
   try {
+    if (!env || !env.ECONOMIC_DATA) {
+      console.error(`[KV ERROR] ECONOMIC_DATA KV binding is missing!`);
+      return [];
+    }
+    
     const list = await env.ECONOMIC_DATA.list({ prefix, limit });
     return list.keys.map(key => key.name);
   } catch (error) {
