@@ -43,3 +43,4 @@ Desktop.ini
 *.tsbuildinfo
 repomix-output.xml
 TYPESCRIPT_NOTES.md
+wrangler.toml
