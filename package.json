@@ -1,0 +1,26 @@
+{
+  "name": "economic-indicators-api",
+  "version": "0.1.0",
+  "description": "Cloudflare Workers API for economic indicators from FRED",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc",
+    "publish:cloudflare": "wrangler publish --env production"
+  },
+  "author": "ahacad",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20230404.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.19.86",
+    "@typescript-eslint/eslint-plugin": "^5.59.0",
+    "@typescript-eslint/parser": "^5.59.0",
+    "eslint": "^8.40.0",
+    "jest": "^29.5.0",
+    "prettier": "^2.8.8",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.4",
+    "wrangler": "^3.0.0"
+  }
+}
